@@ -1,0 +1,171 @@
+#include <MKL25Z4.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+void UART0_init(void);
+char Key_Pressed(void);
+void DELAY(int n);
+void send_char(char c);
+void send_string(const char* s);
+
+int main(void) {
+    // enable the clock of port A and Port E
+    SIM_SCGC5 |= SIM_SCGC5_PORTB(1); //enable clock for port B
+    SIM_SCGC5 |= SIM_SCGC5_PORTE(1); //enable clock for port E
+    // configuring the two ports as GPIO
+    PORTB_PCR0 |= PORT_PCR_MUX(1);
+    PORTB_PCR1 |= PORT_PCR_MUX(1);
+    PORTB_PCR2 |= PORT_PCR_MUX(1);
+    PORTB_PCR3 |= PORT_PCR_MUX(1);
+    PORTE_PCR0 |= PORT_PCR_MUX(1);
+    PORTE_PCR1 |= PORT_PCR_MUX(1);
+    PORTE_PCR2 |= PORT_PCR_MUX(1);
+    PORTE_PCR3 |= PORT_PCR_MUX(1);
+
+    // configuring port E as input and port B as output 
+    GPIOB_PDDR |= 0xF; //port B output
+    GPIOE_PDDR &= ~0xF; //port E input
+
+    UART0_init(); //initialize UART for serial communication
+
+    char last_key = 0, current_key = 0, key_pressed = 0; 
+	//last_key for the key previously pressed
+	//current_key for the key currently pressed
+	//key_pressed is the flag set to indicate that a key has been pressed
+
+    while (1) {
+        current_key = Key_Pressed();
+        if (current_key != last_key) { //if a new key is pressed
+            if (current_key != NULL && !key_pressed) { //we'll enter a new loop if a key is pressed
+                if (current_key == '*') { //print Khaled Marouf if * is pressed
+                    send_string("Khaled Marouf");
+                } else if (current_key == '#') { //print 100059293 if # is pressed
+                    send_string("100059293");
+                } else { //add "key pressed = " to every input before displaying it 
+                    send_char('K');
+                    send_char('e');
+                    send_char('y');
+                    send_char(' ');
+                    send_char('p');
+                    send_char('r');
+                    send_char('e');
+                    send_char('s');
+                    send_char('s');
+                    send_char('e');
+                    send_char('d');
+                    send_char(' ');
+                    send_char('=');
+                    send_char(' ');
+                    send_char(current_key); //display the key pressed
+                    send_char('\r');
+                    send_char('\n');
+                }
+                key_pressed = 1; //set the flag to 1 if key is pressed
+            } else if (current_key == NULL) {
+                key_pressed = 0; // reset the flag when no key is pressed
+            }
+            last_key = current_key; //the key pressed is the current key until another one is pressed
+        }
+        DELAY(100); // adjust the debouncing delay
+    }
+}
+
+void send_char(char c) {
+    while ((UART0_S1 & UART0_S1_TDRE(1)) == 0) {} //check TDRE flag in the status register
+    UART0_D = c; //if it's safe to transmit the data register sends "c" to begin transmission
+}
+
+void send_string(const char* s) { //function to read strings
+    while (*s) {
+        send_char(*s++);
+    }
+    send_char('\r');
+    send_char('\n');//add a new line after strings are transmitted
+}
+
+char Key_Pressed(void) { //function to read the value of the key pressed
+    char m = 0; //initialize variable m
+    PTB->PDOR = 0x0E; //used to scan the first row
+    DELAY(10);
+    if (GPIOE_PDIR == 0x10) 
+        {DELAY(1); m = ' ';}
+    else if (GPIOE_PDIR == 0x0E) //display 1
+        {DELAY(1); m = '1';}
+    else if (GPIOE_PDIR == 0x0D) //display 2
+        {DELAY(1); m = '2';}
+    else if (GPIOE_PDIR == 0x0B) //display 3
+        {DELAY(1); m = '3';}
+    else if (GPIOE_PDIR == 0x07) //display A
+        {DELAY(1); m = 'A';}
+    // Checking row 2
+    PTB->PDOR = 0x0D; //used to scan the second row
+    DELAY(10);
+    if (GPIOE_PDIR == 0x10) 
+        {DELAY(1); m = ' ';}
+    else if (GPIOE_PDIR == 0x0E) //display 4
+        {DELAY(1); m = '4';}
+    else if (GPIOE_PDIR == 0x0D) //display 5
+        {DELAY(1); m = '5';}
+    else if (GPIOE_PDIR == 0x0B) //display 6
+        {DELAY(1); m = '6';}
+    else if (GPIOE_PDIR == 0x07) //display B
+        {DELAY(1); m = 'B';}
+    // Checking row 3
+    PTB->PDOR = 0x0B; //used to scan the third row
+    DELAY(10);
+    if (GPIOE_PDIR == 0x10) 
+        {DELAY(1); m = ' ';}
+    else if (GPIOE_PDIR == 0x0E) //display 7
+        {DELAY(1); m = '7';}
+    else if (GPIOE_PDIR == 0x0D) //display 8
+        {DELAY(1); m = '8';}
+    else if (GPIOE_PDIR == 0x0B) //display 9
+        {DELAY(1); m = '9';}
+    else if (GPIOE_PDIR == 0x07) //display C
+        {DELAY(1); m = 'C';}
+    // Checking row 4
+    PTB->PDOR = 0x07; //used to scan the fourth row
+    DELAY(10);
+    if (GPIOE_PDIR == 0x10) //interpret key values
+        {DELAY(1); m = ' ';}
+    else if (GPIOE_PDIR == 0x0E) //display value of *
+        {DELAY(1); m = '*';}
+    else if (GPIOE_PDIR == 0x0D) //display 0
+        {DELAY(1); m = '0';}
+    else if (GPIOE_PDIR == 0x0B) //display value of #
+        {DELAY(1); m = '#';}
+    else if (GPIOE_PDIR == 0x07) //display D
+        {DELAY(1); m = 'D';}
+    return m; //print the value on tera term
+}
+
+void UART0_init(void) {
+    MCG_C1 |= MCG_C1_CLKS(0);     //select PLLFLL as clock source
+    MCG_C1 |= MCG_C1_IREFS(1);    //select Internal Reference clock
+    MCG_C4 |= MCG_C4_DRST_DRS(1); 
+    MCG_C4 |= MCG_C4_DMX32(1);    // set frequency to 48Mhz
+
+    SIM_SCGC4 |= SIM_SCGC4_UART0(1); // enable clock for UART0
+    SIM_SOPT2 |= SIM_SOPT2_UART0SRC(1); // use FLL output for UART Baud rate generator
+
+    SIM_SCGC5 |= SIM_SCGC5_PORTA(1);   // enable clock for port A
+
+    PORTA_PCR1 |= PORT_PCR_MUX(2); // enable PTA1 to receive
+    PORTA_PCR2 |= PORT_PCR_MUX(2);  // enable PTA2 to transmit
+
+    UART0_C4 = 0x0F; //
+    UART0_BDH = 0x01;
+    UART0_BDL = 0x38; // set 9600 as baud rate
+
+    UART0_C1  = 0x00; // configure the serial port to 8 data bits, no parity and 1 stop bit
+
+    UART0_C2  |= UART_C2_TE(1);  // Enable Transmit Tx
+    UART0_C2  |= UART_C2_RE(1);  // Enable Receive Rx
+}
+
+void DELAY(int n) { //delay loop
+    int i, j;
+    for (i = 0; i < n; i++)
+        for (j = 0; j < 3500; j++) {}
+}
